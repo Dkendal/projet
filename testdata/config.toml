@@ -1,0 +1,10 @@
+[lib]
+pattern="*.ts"
+template='''
+export default function helloworld() {
+  return "helloworld"
+}
+'''
+
+[lib.relationships]
+test="{}_test.ts"
