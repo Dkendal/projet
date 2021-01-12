@@ -1,0 +1,19 @@
+{
+  "name": "projet",
+  "version": "0.0.0",
+  "description": "A project file management tool",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "keywords": [
+    "project",
+    "project management",
+    "cli",
+    "projectionist",
+    "projectile",
+    "projet"
+  ],
+  "author": "Dylan Kendal",
+  "license": "MIT"
+}
