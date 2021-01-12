@@ -1,6 +1,0 @@
-{
-  "imports": {
-    "fp-ts": "https://raw.githubusercontent.com/gcanti/fp-ts/2.9.3/src/index.ts",
-    "fp-ts/": "https://raw.githubusercontent.com/gcanti/fp-ts/2.9.3/src/"
-  }
-}

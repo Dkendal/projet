@@ -1,12 +1,14 @@
-import * as toml from 'https://deno.land/std@0.83.0/encoding/toml.ts'
-import * as path from 'https://deno.land/std@0.83.0/path/mod.ts'
-import yargs from 'https://deno.land/x/yargs@v16.2.0-deno/deno.ts'
+import fs from 'fs'
+import path from 'path'
+import toml from '@iarna/toml'
+import mm from 'micromatch'
+import yargs from 'yargs/yargs'
 
-const argv = yargs(Deno.args)
+yargs(process.argv.slice(2))
   .command({
     command: 'assoc <file> <relationship>',
     aliases: ['a'],
-    desc: 'find a file with the matching relationship',
+    describe: 'find a file with the matching relationship',
     handler: async ({
       file,
       relationship,
@@ -15,9 +17,11 @@ const argv = yargs(Deno.args)
       relationship: string
     }) => {
       const config = await loadConfig('./testdata/config.toml')
+
       if (!config) {
         throw "Couldn't find config"
       }
+
       console.log(assoc(config, relationship, file))
     },
   })
@@ -69,32 +73,34 @@ interface MatchConfig {
  * directory.
  */
 export async function loadConfig(file: string): Promise<Config | null> {
-  const content = await Deno.readTextFile(file)
+  console.log(file)
+  const content = await new Promise((res, rej) =>
+    fs.readFile(file, { encoding: 'utf-8' }, (err, data) => {
+      if (err) {
+        rej(err)
+      }
+      res(data)
+    }),
+  )
+
+  if (typeof content !== 'string') {
+    throw 'expected a string'
+  }
+
   const config = toml.parse(content)
-  return config as Config
+
+  return (config as unknown) as Config
 }
 
 export function findMatch(
   config: Config,
   file: string,
-): { capture: RegExpMatchArray; value: MatchConfig } | null {
-  for (let key in config) {
-    const value = config[key]
-    const pattern = value.pattern
+): { captures: RegExpMatchArray; value: MatchConfig } | null {
+  for (const [_key, value] of Object.entries(config)) {
+    const captures = mm.capture(value.pattern, file)
 
-    const regexp = new RegExp(
-      path
-        .globToRegExp(pattern, {
-          globstar: true,
-          extended: true,
-        })
-        .source.replaceAll('[^/]*', '($&)'),
-    )
-
-    const capture = file.match(regexp)
-
-    if (capture) {
-      return { capture, value }
+    if (captures) {
+       return { captures, value }
     }
   }
   return null
@@ -118,7 +124,7 @@ export function assoc(
     throw `no relationship: ${relationship}`
   }
 
-  const captures = match.capture.slice(1)
+  const captures = match.captures.slice(1)
   let capture: string | undefined
 
   while ((capture = captures.shift())) {
@@ -126,7 +132,7 @@ export function assoc(
 
     alternate = alternate.replace(
       /{[^}]*}/,
-      (substring: string, ...args: []) => value,
+      (_substring: string, ..._args: []) => value,
     )
   }
 
@@ -136,13 +142,13 @@ export function assoc(
 /**
  * Return listing all files that match defined file groups.
  */
-export function list(config: Config): string[] {
+export function list(_config: Config): string[] {
   return []
 }
 
 /**
  * Return a generated version of a file at the path `path`.
  */
-export function template(config: Config, path: string): string {
+export function template(_config: Config, _path: string): string {
   return ''
 }
