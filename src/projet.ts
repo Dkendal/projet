@@ -1,33 +1,8 @@
 import fs from 'fs'
 import path from 'path'
 import toml from '@iarna/toml'
-import mm from 'micromatch'
-import yargs from 'yargs/yargs'
-
-yargs(process.argv.slice(2))
-  .command({
-    command: 'assoc <file> <relationship>',
-    aliases: ['a'],
-    describe: 'find a file with the matching relationship',
-    handler: async ({
-      file,
-      relationship,
-    }: {
-      file: string
-      relationship: string
-    }) => {
-      const config = await loadConfig('./testdata/config.toml')
-
-      if (!config) {
-        throw "Couldn't find config"
-      }
-
-      console.log(assoc(config, relationship, file))
-    },
-  })
-  .demandCommand()
-  .help()
-  .wrap(72).argv
+import match from 'micromatch'
+import * as mustache from 'micromustache'
 
 /*
  * Basic premise of what I want v1 to be
@@ -56,11 +31,11 @@ yargs(process.argv.slice(2))
 /**
  * The file config. Defines acceptable input.
  */
-interface Config {
+export interface Config {
   [path: string]: MatchConfig
 }
 
-interface MatchConfig {
+export interface MatchConfig {
   pattern: string
   template?: string
   relationships: {
@@ -92,15 +67,23 @@ export async function loadConfig(file: string): Promise<Config | null> {
   return (config as unknown) as Config
 }
 
-export function findMatch(
-  config: Config,
-  file: string,
-): { captures: RegExpMatchArray; value: MatchConfig } | null {
-  for (const [_key, value] of Object.entries(config)) {
-    const captures = mm.capture(value.pattern, file)
+/**
+ * Configuration for a file that matched the config's pattern. Includes the
+ * category, which is what kind of "type" of file this is, the config for
+ * this category, and the captures from the pattern for replacement.
+ */
+interface CategoryMatch {
+  captures: RegExpMatchArray
+  category: string
+  config: MatchConfig
+}
+
+export function findMatch(config: Config, file: string): CategoryMatch | null {
+  for (const [category, categoryConfig] of Object.entries(config)) {
+    const captures = match.capture(categoryConfig.pattern, file)
 
     if (captures) {
-       return { captures, value }
+      return { captures, category, config: categoryConfig }
     }
   }
   return null
@@ -116,27 +99,24 @@ export function assoc(
   file: string,
 ): string {
   const match = findMatch(config, file)
+
   if (!match) {
     throw `no match for: ${file}`
   }
-  let alternate = match.value.relationships[relationship]
-  if (!alternate) {
+
+  let pathTemplate = match.config.relationships[relationship]
+
+  if (!pathTemplate) {
     throw `no relationship: ${relationship}`
   }
 
-  const captures = match.captures.slice(1)
-  let capture: string | undefined
+  const variables = Object.assign({ file }, match.captures)
 
-  while ((capture = captures.shift())) {
-    const value = capture
-
-    alternate = alternate.replace(
-      /{[^}]*}/,
-      (_substring: string, ..._args: []) => value,
-    )
-  }
-
-  return alternate
+  return mustache.render(pathTemplate, variables, {
+    tags: ['{', '}'],
+    propsExist: true,
+    validateVarNames: true,
+  })
 }
 
 /**

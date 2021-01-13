@@ -29,6 +29,7 @@
   "dependencies": {
     "@iarna/toml": "^2.2.5",
     "micromatch": "^4.0.2",
+    "micromustache": "^8.0.3",
     "yargs": "^16.2.0"
   }
 }
