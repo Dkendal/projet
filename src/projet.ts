@@ -1,8 +1,8 @@
-import fs from 'fs'
-import path from 'path'
 import toml from '@iarna/toml'
+import fs from 'fs'
 import match from 'micromatch'
 import * as mustache from 'micromustache'
+import {isTransformer, transforms} from './transforms'
 
 /*
  * Basic premise of what I want v1 to be
@@ -38,7 +38,7 @@ export interface Config {
 export interface MatchConfig {
   pattern: string
   template?: string
-  relationships: {
+  relationships?: {
     [name: string]: string
   }
 }
@@ -48,7 +48,6 @@ export interface MatchConfig {
  * directory.
  */
 export async function loadConfig(file: string): Promise<Config | null> {
-  console.log(file)
   const content = await new Promise((res, rej) =>
     fs.readFile(file, { encoding: 'utf-8' }, (err, data) => {
       if (err) {
@@ -104,15 +103,16 @@ export function assoc(
     throw `no match for: ${file}`
   }
 
-  let pathTemplate = match.config.relationships[relationship]
+  const relationships = match.config.relationships ?? {}
+  const template = relationships[relationship]
 
-  if (!pathTemplate) {
+  if (!template) {
     throw `no relationship: ${relationship}`
   }
 
   const variables = Object.assign({ file }, match.captures)
 
-  return mustache.render(pathTemplate, variables, {
+  return mustache.render(template, variables, {
     tags: ['{', '}'],
     propsExist: true,
     validateVarNames: true,
@@ -129,6 +129,47 @@ export function list(_config: Config): string[] {
 /**
  * Return a generated version of a file at the path `path`.
  */
-export function template(_config: Config, _path: string): string {
-  return ''
+export function template(config: Config, file: string): string {
+  const match = findMatch(config, file)
+
+  if (!match) {
+    throw `no match for: ${file}`
+  }
+
+  const template = match.config.template ?? ''
+
+  const scope = Object.assign({ file }, match.captures)
+
+  return mustache.renderFn(
+    template,
+    (path, scope) => {
+      if (!scope) {
+        throw "error: expected scope to be non-null"
+      }
+
+      const [varName, ...transformNames] = path.split('|')
+
+      if (!varName) {
+        throw "error: expected varName to be non-null"
+      }
+
+      const value = mustache.get(scope, varName)
+
+      return transformNames.reduce((acc, transform) => {
+        transform = transform.trim()
+
+        if (!isTransformer(transform)) {
+          throw `error: ${transform} is not a valid transform`
+        }
+
+        return transforms[transform](acc)
+      }, value)
+    },
+    scope,
+    {
+      tags: ['{', '}'],
+      propsExist: true,
+      validateVarNames: true,
+    },
+  )
 }

@@ -23,7 +23,6 @@ yargs(process.argv.slice(2))
         throw "Couldn't find config"
       }
 
-      console.log(assoc(config, relationship, file))
     },
   })
   .demandCommand()

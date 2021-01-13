@@ -36,3 +36,18 @@ describe('assoc/3', () => {
     )
   })
 })
+
+describe('template/3', () => {
+  test.skip('renders a parameterized version of the template configured', async () => {
+    const config: Config = {
+      lib: {
+        pattern: '**/*.ts',
+        template: 'def {0}.{1 | uppercase} do\nend'
+      },
+    }
+
+    expect(mod.template(config, 'src/index.ts')).toEqual(
+      'src/index.test.ts',
+    )
+  })
+})
