@@ -1,27 +1,5 @@
 import * as mod from './transforms'
 
-// dot             / to .
-// underscore      / to _
-// backslash       / to \
-// colons          / to ::
-// hyphenate       _ to -
-// blank           _ and - to space
-// uppercase       uppercase
-// camelcase       foo_bar/baz_quux to fooBar/bazQuux
-// snakecase       FooBar/bazQuux to foo_bar/baz_quux
-// capitalize      capitalize first letter and each letter after a slash
-// dirname         remove last slash separated component
-// basename        remove all but last slash separated component
-// singular        singularize
-// plural          pluralize
-// file            absolute path to file
-// project         absolute path to project
-// open            literal {
-// close           literal }
-// nothing         empty string
-// vim             no-op (include to specify other implementations should ignore)
-
-
 test('transforms.capitalize/1', () => {
   expect(mod.transforms.capitalize('foo/bar/baz.ts')).toEqual('Foo/Bar/Baz.ts')
 })
@@ -55,9 +33,45 @@ test('transforms.uppercase/1', () => {
 })
 
 test('transforms.camelcase/1', () => {
-  expect(mod.transforms.camelcase('foo_bar/baz_quux.ts')).toEqual('fooBar/bazQuux.ts')
+  expect(mod.transforms.camelcase('foo_bar/baz_quux.ts')).toEqual(
+    'fooBar/bazQuux.ts',
+  )
+})
+
+test('transforms.snakecase/1', () => {
+  expect(mod.transforms.snakecase('FooBar/bazQuux foo-bar')).toEqual(
+    'foo_bar/baz_quux foo-bar',
+  )
+})
+
+test('transforms.dirname/1', () => {
+  expect(mod.transforms.dirname('foo/bar/baz')).toEqual('foo/bar')
+})
+
+test('transforms.basename/1', () => {
+  expect(mod.transforms.basename('foo/bar/baz.a.b.c')).toEqual('baz.a.b.c')
+})
+
+test('transforms.extname/1', () => {
+  expect(mod.transforms.extname('foo/bar/baz.a.b.c')).toEqual('.c')
+})
+
+test('transforms.absolute/1', () => {
+  expect(mod.transforms.absolute('package.json')).toMatch(/^\/.+\/package.json$/)
 })
 
 test('transforms.lowercase/1', () => {
   expect(mod.transforms.lowercase('FOO/BAR/BAZ.ts')).toEqual('foo/bar/baz.ts')
 })
+
+// TODO singular        singularize
+// TODO plural          pluralize
+//
+// Add these as variables
+//
+// file            absolute path to file
+// project         absolute path to project
+// open            literal {
+// close           literal }
+// nothing         empty string
+// vim             no-op (include to specify other implementations should ignore)
