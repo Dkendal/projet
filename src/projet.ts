@@ -136,40 +136,71 @@ export function template(config: Config, file: string): string {
     throw `no match for: ${file}`
   }
 
-  const template = match.config.template ?? ''
+  const template = match.config.template
 
-  const scope = Object.assign({ file }, match.captures)
+  if (!template) {
+    return ''
+  }
 
-  return mustache.renderFn(
-    template,
-    (path, scope) => {
-      if (!scope) {
-        throw "error: expected scope to be non-null"
-      }
+  const variables = { file }
+  const captures = match.captures
+  const scope = Object.assign(variables, captures)
 
-      const [varName, ...transformNames] = path.split('|')
+  return render(template, scope)
+}
 
-      if (!varName) {
-        throw "error: expected varName to be non-null"
-      }
+type ICompileOptions = mustache.ICompileOptions
+type Scope = mustache.Scope
 
-      const value = mustache.get(scope, varName)
+const get = (scope: Scope, pathExpr: string | string[]) =>
+  mustache.get(scope, pathExpr, { propsExist: true })
 
-      return transformNames.reduce((acc, transform) => {
-        transform = transform.trim()
+const pipeReducer = (acc: string, transformName: string) => {
+    transformName = transformName.trim()
 
-        if (!isTransformer(transform)) {
-          throw `error: ${transform} is not a valid transform`
-        }
+    if (!isTransformer(transformName)) {
+      throw `error: ${transformName} is not a valid transform`
+    }
 
-        return transforms[transform](acc)
-      }, value)
-    },
-    scope,
-    {
-      tags: ['{', '}'],
-      propsExist: true,
-      validateVarNames: true,
-    },
-  )
+    return transforms[transformName](acc)
+  }
+
+/**
+ * Called by mustache with the contents of a tag, used to provide our own
+ * grammar.
+ */
+function resolveFn(path: string, scope?: Scope) {
+  if (!scope) {
+    throw new Error('expected scope to be non-null')
+  }
+
+  const [pathExpr, ...pipes] = path.split('|')
+
+  if (!pathExpr) {
+    throw new Error(`expected a path expression, got: ${pathExpr}`)
+  }
+
+  const value = get(scope, pathExpr)
+
+  if (typeof value !== 'string') {
+    throw new Error('expected value to be a string')
+  }
+
+  return pipes.reduce(pipeReducer, value)
+}
+
+/**
+ * Render a mustache template.
+ */
+export function render(
+  template: string,
+  scope: {},
+): string {
+  const opts: ICompileOptions = {
+    tags: ['{', '}'],
+    propsExist: true,
+    validateVarNames: true,
+  }
+
+  return mustache.renderFn(template, resolveFn, scope, opts)
 }
