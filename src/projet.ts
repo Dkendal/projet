@@ -2,7 +2,7 @@ import toml from '@iarna/toml'
 import fs from 'fs'
 import match from 'micromatch'
 import * as mustache from 'micromustache'
-import {isTransformer, transforms} from './transforms'
+import { isTransformer, transforms } from './transforms'
 
 /*
  * Basic premise of what I want v1 to be
@@ -110,13 +110,9 @@ export function assoc(
     throw `no relationship: ${relationship}`
   }
 
-  const variables = Object.assign({ file }, match.captures)
-
-  return mustache.render(template, variables, {
-    tags: ['{', '}'],
-    propsExist: true,
-    validateVarNames: true,
-  })
+  const binding = { file }
+  const scope = buildScope(match, binding)
+  return render(template, scope)
 }
 
 /**
@@ -142,28 +138,34 @@ export function template(config: Config, file: string): string {
     return ''
   }
 
-  const variables = { file }
-  const captures = match.captures
-  const scope = Object.assign(variables, captures)
-
+  const binding = { file }
+  const scope = buildScope(match, binding)
   return render(template, scope)
 }
 
 type ICompileOptions = mustache.ICompileOptions
 type Scope = mustache.Scope
 
-const get = (scope: Scope, pathExpr: string | string[]) =>
-  mustache.get(scope, pathExpr, { propsExist: true })
+function buildScope(match: CategoryMatch, bindings: {}) {
+  const entries = match.captures.map((value, idx) => [`$${idx}`, value])
+  const captures = Object.fromEntries(entries)
+  const scope = Object.assign(bindings, captures)
+  return scope
+}
 
-const pipeReducer = (acc: string, transformName: string) => {
-    transformName = transformName.trim()
+function get(scope: Scope, pathExpr: string | string[]) {
+  return mustache.get(scope, pathExpr, { propsExist: true })
+}
 
-    if (!isTransformer(transformName)) {
-      throw `error: ${transformName} is not a valid transform`
-    }
+function pipeReducer(acc: string, transformName: string) {
+  transformName = transformName.trim()
 
-    return transforms[transformName](acc)
+  if (!isTransformer(transformName)) {
+    throw `error: ${transformName} is not a valid transform`
   }
+
+  return transforms[transformName](acc)
+}
 
 /**
  * Called by mustache with the contents of a tag, used to provide our own
@@ -192,15 +194,34 @@ function resolveFn(path: string, scope?: Scope) {
 /**
  * Render a mustache template.
  */
-export function render(
-  template: string,
-  scope: {},
-): string {
+export function render(template: string, scope: {}): string {
   const opts: ICompileOptions = {
     tags: ['{', '}'],
     propsExist: true,
     validateVarNames: true,
   }
 
-  return mustache.renderFn(template, resolveFn, scope, opts)
+  try {
+    return mustache.renderFn(template, resolveFn, scope, opts)
+  } catch (e) {
+    if (e instanceof ReferenceError) {
+      const br = '\n'
+      const message = e.message
+      const stack = e.stack
+
+      const reraised = new ReferenceError(
+        [
+          message,
+          br,
+          `Available assigns: ${Object.keys(scope).join(', ')}`,
+          br,
+        ].join(''),
+      )
+
+      reraised.stack = stack?.split('\n').slice(2).join('\n')
+
+      throw reraised
+    }
+    throw e
+  }
 }

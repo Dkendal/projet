@@ -28,7 +28,7 @@ describe('assoc/3', () => {
       lib: {
         pattern: '**/*.ts',
         relationships: {
-          test: '{0}/{1}.test.ts',
+          test: '{$0}/{$1}.test.ts',
         },
       },
     }
@@ -40,16 +40,15 @@ describe('assoc/3', () => {
 })
 
 describe('template/3', () => {
-  test.skip('renders a parameterized version of the template configured', async () => {
+  test('glob captures are available as env like variables', async () => {
     const config: Config = {
       lib: {
         pattern: 'src/**/*.ts',
-        template: '{0 1 | camelcase | capitalize | dot}',
+        template: '{$0} {$1}',
       },
     }
 
-    expect(mod.template(config, 'src/foo/bar/baz.ts')).toEqual('Foo.Bar.Baz')
-    expect(mod.template(config, 'src/foo.ts')).toEqual('Foo')
+    expect(mod.template(config, 'src/foo/bar/baz.ts')).toEqual('foo/bar baz')
   })
 })
 
