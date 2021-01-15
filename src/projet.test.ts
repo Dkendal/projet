@@ -1,8 +1,6 @@
 import type { Config } from './projet'
 import * as mod from './projet'
 
-import mm from 'micromatch'
-
 describe('loadConfig/1', () => {
   test('decodes a TOML file to JSON', async () => {
     const config = await mod.loadConfig('testdata/config.toml')
@@ -36,6 +34,20 @@ describe('assoc/3', () => {
     expect(mod.assoc(config, 'test', 'src/index.ts')).toEqual(
       'src/index.test.ts',
     )
+  })
+})
+
+describe('findMatch/2', () => {
+  test('finds matching config entries', async () => {
+    const config: Config = { lib: { pattern: '**/*.ts' } }
+    const expected = {
+      captures: ['src', 'index'],
+      category: 'lib',
+      config: { pattern: '**/*.ts' },
+    }
+
+    expect(mod.findMatch(config, 'src/index.ts')).toEqual(expected)
+    expect(mod.findMatch(config, './src/index.ts')).toEqual(expected)
   })
 })
 

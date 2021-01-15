@@ -1,7 +1,8 @@
-import toml from '@iarna/toml'
-import fs from 'fs'
-import match from 'micromatch'
+import * as toml from '@iarna/toml'
+import * as fs from 'fs'
+import * as match from 'micromatch'
 import * as mustache from 'micromustache'
+import * as path from 'path'
 import { isTransformer, transforms } from './transforms'
 
 /*
@@ -78,8 +79,12 @@ interface CategoryMatch {
 }
 
 export function findMatch(config: Config, file: string): CategoryMatch | null {
+  // remove leading ./
+  file = path.relative('./', file)
+
   for (const [category, categoryConfig] of Object.entries(config)) {
-    const captures = match.capture(categoryConfig.pattern, file)
+    const pattern = categoryConfig.pattern
+    const captures = match.capture(pattern, file)
 
     if (captures) {
       return { captures, category, config: categoryConfig }
