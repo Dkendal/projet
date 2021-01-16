@@ -1,3 +1,11 @@
-local api = vim.api
+local M = {}
 
-api.nvim_command(':echomsg "hello world from lua"')
+local api = vim.api
+local ex = api.nvim_command
+
+ex(':echomsg "hello world from lua"')
+
+function M.assoc()
+end
+
+return M

@@ -1,13 +1,9 @@
-Fix for neovim below. This prevents neovim from using the pager.
-
-  :set cmdheight=99
-
-For the purpose of this test we'll add the vim folder to the runtime path, this
-is assuming that the test is being run from the project root.
-
-  :let &runtimepath=fnamemodify('vim', ':p:h')
-
 We'll just double check here that the lua file can be sourced.
 
-  :lua require'projet'
+  :lua projet = require'projet'
   ~ hello world from lua
+
+We can get a files alternate directly by calling the function.
+
+  :echomsg projet#assoc('test')
+  ~ ./src/index.test.ts

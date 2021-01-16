@@ -1,0 +1,3 @@
+set cmdheight=99
+
+let &runtimepath=fnamemodify('vim', ':p:h')
