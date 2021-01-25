@@ -14,7 +14,7 @@ npm --global install neovim
 **vim-plug**
 
 ```
-Plug 'dkendal/projet', {'rtp': 'vim'}
+Plug 'dkendal/projet', {'rtp': 'vim', do: 'UpdateRemotePlugins'}
 ```
 
 After installing make sure to run
