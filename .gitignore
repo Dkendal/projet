@@ -5,3 +5,4 @@ dist
 tmp
 .nvimlog
 src/*.ts.js
+vim/rplugin/node/projet-vim.js
