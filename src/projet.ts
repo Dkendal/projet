@@ -124,9 +124,11 @@ export function assoc(config: ConfigInstance, file: string, linkName?: string): 
 
   const binding = { file }
   const scope = buildScope(match, binding)
-  const localpath = render(pattern, scope)
+  let localpath = render(pattern, scope)
   const dir = path.dirname(config.path)
-  return path.normalize(path.join(dir, localpath))
+  localpath = path.join(dir, localpath)
+
+  return path.normalize(localpath)
 }
 
 /**
@@ -171,7 +173,7 @@ export function template(config: ConfigInstance, file: string): string {
   const template = match.rule.template
 
   if (!template)
-    return ''
+    throw new Error(`No template defined for ${match.category}`)
 
   const binding = { file }
   const scope = buildScope(match, binding)

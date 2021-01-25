@@ -1,5 +1,7 @@
-import type { NvimPlugin } from 'neovim'
-import { CommandOptions, NvimFunctionOptions } from 'neovim/lib/host/NvimPlugin'
+import type {NvimPlugin} from 'neovim'
+import {AutocmdOptions, CommandOptions, NvimFunctionOptions} from 'neovim/lib/host/NvimPlugin'
+import path from 'path'
+import util from 'util'
 import * as projet from '../projet'
 
 const pluginOptions = {
@@ -22,7 +24,7 @@ export = (plugin: NvimPlugin) => {
   const error = logger.error.bind(logger)
   const warn = logger.warn.bind(logger)
 
-  const dump = (x: any) => echomsg(JSON.stringify(x))
+  const dump = (x: any) => echomsg(util.inspect(x, false, null))
 
   const echoerr = (...msg: string[]) => api.errWriteLine(msg.join(' '))
 
@@ -35,10 +37,10 @@ export = (plugin: NvimPlugin) => {
       } catch (e: unknown) {
         if (typeof e === 'string')
           return echoerr(e)
-        else if (e instanceof Error)
-          return echoerr(e.message)
+        // else if (e?.message)
+        //   return echoerr(e.message)
         else
-          return echoerr(JSON.stringify(e))
+          return echoerr(util.inspect(e, 1))
       }
     }
 
@@ -52,13 +54,24 @@ export = (plugin: NvimPlugin) => {
     return plugin.registerFunction(name, wrappedFunction, opts)
   }
 
+  function defAutocmd(name: string, fn: Function, opts: AutocmdOptions) {
+    const wrappedFunction = catchErrors(fn)
+    return plugin.registerAutocmd(name, wrappedFunction, opts)
+  }
+
   /*
    * Commands
+   */
+
+  /**
+   * @since 0.1.0
    */
   defCmd('ProjetLink', async ([linkName]: string[]) => {
     const file = await api.buffer.name
     const config = await projet.getConfig(file)
-    const linkFile = projet.assoc(config, file, linkName)
+    let linkFile = projet.assoc(config, file, linkName)
+    const cwd = await api.call('getcwd')
+    linkFile = path.relative(cwd, linkFile)
 
     await cmd(`edit ${linkFile}`)
   }, {
@@ -67,6 +80,40 @@ export = (plugin: NvimPlugin) => {
     complete: 'custom,ProjetLinkComplete',
   })
 
+  /**
+   * @since 0.2.0
+   */
+  defCmd('Cd', async () => {
+    const bname = await api.buffer.name
+    const configFile = await projet.findConfig(bname)
+    const dir = path.dirname(configFile)
+    await cmd(`cd ${dir}`)
+  }, { sync: false })
+
+  /**
+   * @since 0.2.0
+   */
+  defCmd('Lcd', async () => {
+    const bname = await api.buffer.name
+    const configFile = await projet.findConfig(bname)
+    const dir = path.dirname(configFile)
+    await cmd(`lcd ${dir}`)
+  }, { sync: false })
+
+  /**
+   * @since 0.2.0
+   */
+  defCmd('Tcd', 
+    async () => {
+    const bname = await api.buffer.name
+    const configFile = await projet.findConfig(bname)
+    const dir = path.dirname(configFile)
+    await cmd(`tcd ${dir}`)
+  }, { sync: false })
+
+  /**
+   * @since 0.1.0
+   */
   defCmd('ProjetConfig', async () => {
     const bname = await api.buffer.name
     const configFile = await projet.findConfig(bname)
@@ -76,6 +123,10 @@ export = (plugin: NvimPlugin) => {
   /*
    * Functions
    */
+
+  /**
+   * @since 0.1.0
+   */
   defFn('ProjetLinkComplete', async (_argLead: string, _cmdLine: string, _cursorPos: number) => {
     const file = await api.buffer.name
     const config = await projet.getConfig(file)
@@ -84,11 +135,26 @@ export = (plugin: NvimPlugin) => {
     return keys.join('\n')
   }, { sync: true })
 
+  /**
+   * @since 0.1.0
+   */
   defFn('ProjetGetConfig', async () => {
     const file = await api.buffer.name
     return await projet.getConfig(file)
   }, { sync: true })
 
+  /**
+   * @since 0.2.0
+   */
+  defFn('ProjetRenderTemplate', async () => {
+    const file = await api.buffer.name
+    const config = await projet.getConfig(file)
+    return projet.template(config, file)
+  }, { sync: true })
+
+  /**
+   * @since 0.1.0
+   */
   defFn('ProjetGetMatchConfig', async () => {
     const file = await api.buffer.name
     const config = await projet.getConfig(file)
@@ -98,4 +164,23 @@ export = (plugin: NvimPlugin) => {
 
     return match
   }, { sync: true })
+
+  /*
+   * Autocommands
+   */
+
+  /**
+   * @since 0.2.0
+   */
+  defAutocmd('BufNewFile', async () => {
+    // Apply template
+    const file = await api.buffer.name
+    const config = await projet.getConfig(file)
+    const template = projet.template(config, file)
+    const lines = template.split('\n')
+    await api.buffer.setLines(lines, { start: 0, end: -1 })
+  }, {
+    pattern: '*',
+    sync: false,
+  })
 }
