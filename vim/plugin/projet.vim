@@ -5,6 +5,6 @@ endif
 noremap <unique> <silent> <plug>(ProjetLink) :ProjetLink<cr>
 noremap <unique> <silent> <plug>(ProjetConfig) :ProjetConfig<cr>
 
-" if !exists(':A')
-"   command -args=? -complete=custom,ProjetLinkComplete A :ProjetLink <args><cr>
-" endif
+if exists(':A') !=# 2
+  command -nargs=? -complete=custom,ProjetLinkComplete A :ProjetLink <args>
+endif
