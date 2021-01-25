@@ -7,6 +7,13 @@ const replaceForwardSlash = (replacement: string) => (source: string) => source.
 const replaceAll = (pattern: string, replacement: string) =>
   (source: string) => source.replace(new RegExp(pattern, 'g'), replacement)
 
+/**
+ * Functions that are available as pipeable path transforms.
+ *
+ * For example:
+ *
+ *   { $0 | underscore | dot }
+ */
 export const transforms = {
   uppercase: (s: string) => s.toUpperCase(),
 
