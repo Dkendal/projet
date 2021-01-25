@@ -1,5 +1,5 @@
-import type {NvimPlugin} from 'neovim'
-import {CommandOptions, NvimFunctionOptions} from 'neovim/lib/host/NvimPlugin'
+import type { NvimPlugin } from 'neovim'
+import { CommandOptions, NvimFunctionOptions } from 'neovim/lib/host/NvimPlugin'
 import * as projet from '../projet'
 
 const pluginOptions = {
@@ -28,26 +28,27 @@ export = (plugin: NvimPlugin) => {
 
   const echomsg = (...msg: string[]) => api.outWriteLine(msg.join(' '))
 
-  const reportErrors = (fn: Function) => async (...args: any): Promise<void> => {
-    try {
-      return await fn(...args)
-    } catch (e: unknown) {
-      if (typeof e === 'string')
-        return echoerr(e)
-      else if (e instanceof Error)
-        return echoerr(e.message)
-      else
-        return echoerr(JSON.stringify(e))
+  const catchErrors = (fn: Function) =>
+    async (...args: any): Promise<void> => {
+      try {
+        return await fn(...args)
+      } catch (e: unknown) {
+        if (typeof e === 'string')
+          return echoerr(e)
+        else if (e instanceof Error)
+          return echoerr(e.message)
+        else
+          return echoerr(JSON.stringify(e))
+      }
     }
-  }
 
   function defCmd(name: string, fn: Function, opts: CommandOptions | undefined) {
-    const wrappedFunction = reportErrors(fn)
+    const wrappedFunction = catchErrors(fn)
     return plugin.registerCommand(name, wrappedFunction, opts)
   }
 
   function defFn(name: string, fn: Function, opts: NvimFunctionOptions | undefined) {
-    const wrappedFunction = reportErrors(fn)
+    const wrappedFunction = catchErrors(fn)
     return plugin.registerFunction(name, wrappedFunction, opts)
   }
 
@@ -63,7 +64,7 @@ export = (plugin: NvimPlugin) => {
   }, {
     sync: false,
     nargs: '?',
-    complete: 'custom,ProjetAssocComplete',
+    complete: 'custom,ProjetLinkComplete',
   })
 
   defCmd('ProjetConfig', async () => {
@@ -75,7 +76,7 @@ export = (plugin: NvimPlugin) => {
   /*
    * Functions
    */
-  defFn('ProjetAssocComplete', async (_argLead: string, _cmdLine: string, _cursorPos: number) => {
+  defFn('ProjetLinkComplete', async (_argLead: string, _cmdLine: string, _cursorPos: number) => {
     const file = await api.buffer.name
     const config = await projet.getConfig(file)
     const match = projet.findMatch(config, file)
