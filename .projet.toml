@@ -4,17 +4,17 @@ pattern="src/**/*.test.ts"
 
 [[rules.links]]
 name="src"
-pattern="src/{$1}.ts"
+pattern="src/{$*}.ts"
 
 [[rules]]
 name="lib"
 pattern="src/**/*.ts"
 template='''
-export default function helloworld() {
+export default function {$*} () {
   return "helloworld"
 }
 '''
 
 [[rules.links]]
 name="test"
-pattern="src/{$1}.test.ts"
+pattern="src/{$*}.test.ts"

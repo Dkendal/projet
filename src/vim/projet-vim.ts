@@ -1,4 +1,5 @@
-import type { NvimPlugin } from 'neovim'
+import type {NvimPlugin} from 'neovim'
+import {CommandOptions, NvimFunctionOptions} from 'neovim/lib/host/NvimPlugin'
 import * as projet from '../projet'
 
 const pluginOptions = {
@@ -7,48 +8,58 @@ const pluginOptions = {
 }
 
 export = (plugin: NvimPlugin) => {
+  const api = plugin.nvim
+  const cmd = api.command.bind(api)
+
   plugin.setOptions(pluginOptions)
 
+  /*
+   * Loggers use winston, and are configured to write to NVIM_NODE_LOG_FILE
+   */
   const logger = plugin.nvim.logger
   const debug = logger.debug.bind(logger)
   const info = logger.info.bind(logger)
   const error = logger.error.bind(logger)
   const warn = logger.warn.bind(logger)
 
-  const dump = (x: any) => debug(JSON.stringify(x))
+  const dump = (x: any) => echomsg(JSON.stringify(x))
 
-  const api = plugin.nvim
-  const cmd = api.command.bind(api)
+  const echoerr = (...msg: string[]) => api.errWriteLine(msg.join(' '))
 
-  const defCmd = plugin.registerCommand.bind(plugin)
-  const defFn = plugin.registerFunction.bind(plugin)
+  const echomsg = (...msg: string[]) => api.outWriteLine(msg.join(' '))
 
-  const echoerr = (msg: string) => api.errWriteLine(msg)
-  const echomsg = (msg: string) => api.outWriteLine(msg)
-
-  async function reportError<T>(fun: () => Promise<T>) {
+  const reportErrors = (fn: Function) => async (...args: any): Promise<void> => {
     try {
-      return fun()
+      return await fn(...args)
     } catch (e: unknown) {
-      if (e instanceof Error) {
-        echoerr(e.message)
-        return
-      }
-      echoerr(JSON.stringify(e))
-      return
+      if (typeof e === 'string')
+        return echoerr(e)
+      else if (e instanceof Error)
+        return echoerr(e.message)
+      else
+        return echoerr(JSON.stringify(e))
     }
+  }
+
+  function defCmd(name: string, fn: Function, opts: CommandOptions | undefined) {
+    const wrappedFunction = reportErrors(fn)
+    return plugin.registerCommand(name, wrappedFunction, opts)
+  }
+
+  function defFn(name: string, fn: Function, opts: NvimFunctionOptions | undefined) {
+    const wrappedFunction = reportErrors(fn)
+    return plugin.registerFunction(name, wrappedFunction, opts)
   }
 
   /*
    * Commands
    */
   defCmd('ProjetLink', async ([linkName]: string[]) => {
-    reportError(async () => {
-      const file = await api.buffer.name
-      const config = await projet.getConfig(file)
-      const linkFile = projet.assoc(config, file, linkName)
-      await cmd(`edit ${linkFile}`)
-    })
+    const file = await api.buffer.name
+    const config = await projet.getConfig(file)
+    const linkFile = projet.assoc(config, file, linkName)
+
+    await cmd(`edit ${linkFile}`)
   }, {
     sync: false,
     nargs: '?',
@@ -56,42 +67,34 @@ export = (plugin: NvimPlugin) => {
   })
 
   defCmd('ProjetConfig', async () => {
-    reportError(async () => {
-      const bname = await api.buffer.name
-      const configFile = await projet.findConfig(bname)
-      await cmd(`edit ${configFile}`)
-    })
+    const bname = await api.buffer.name
+    const configFile = await projet.findConfig(bname)
+    await cmd(`edit ${configFile}`)
   }, { sync: false })
 
   /*
    * Functions
    */
   defFn('ProjetAssocComplete', async (_argLead: string, _cmdLine: string, _cursorPos: number) => {
-    return await reportError(async () => {
-      const file = await api.buffer.name
-      const config = await projet.getConfig(file)
-      const match = projet.findMatch(config, file)
-      const keys = match?.rule?.links?.map(x => x.name) ?? []
-      return keys.join('\n')
-    })
+    const file = await api.buffer.name
+    const config = await projet.getConfig(file)
+    const match = projet.findMatch(config, file)
+    const keys = match?.rule?.links?.map(x => x.name) ?? []
+    return keys.join('\n')
   }, { sync: true })
 
   defFn('ProjetGetConfig', async () => {
-    return await reportError(async () => {
-      const file = await api.buffer.name
-      return await projet.getConfig(file)
-    })
+    const file = await api.buffer.name
+    return await projet.getConfig(file)
   }, { sync: true })
 
   defFn('ProjetGetMatchConfig', async () => {
-    return await reportError(async () => {
-      const file = await api.buffer.name
-      const config = await projet.getConfig(file)
-      const match = projet.findMatch(config, file)
+    const file = await api.buffer.name
+    const config = await projet.getConfig(file)
+    const match = projet.findMatch(config, file)
 
-      if (!match) throw `No matches for ${file}`
+    if (!match) throw `No matches for ${file}`
 
-      return match
-    })
+    return match
   }, { sync: true })
 }
