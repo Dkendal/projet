@@ -33,15 +33,11 @@ test('transforms.uppercase/1', () => {
 })
 
 test('transforms.camelcase/1', () => {
-  expect(mod.transforms.camelcase('foo_bar/baz_quux.ts')).toEqual(
-    'fooBar/bazQuux.ts',
-  )
+  expect(mod.transforms.camelcase('foo_bar/baz_quux.ts')).toEqual('fooBar/bazQuux.ts')
 })
 
 test('transforms.snakecase/1', () => {
-  expect(mod.transforms.snakecase('FooBar/bazQuux foo-bar')).toEqual(
-    'foo_bar/baz_quux foo-bar',
-  )
+  expect(mod.transforms.snakecase('FooBar/bazQuux foo-bar')).toEqual('foo_bar/baz_quux foo-bar')
 })
 
 test('transforms.dirname/1', () => {

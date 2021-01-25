@@ -1,10 +1,20 @@
-[lib]
-pattern="./src/**/*.ts"
+[[rules]]
+name="test"
+pattern="src/**/*.test.ts"
+
+[[rules.links]]
+name="src"
+pattern="src/{$1}.ts"
+
+[[rules]]
+name="lib"
+pattern="src/**/*.ts"
 template='''
 export default function helloworld() {
   return "helloworld"
 }
 '''
 
-[lib.relationships]
-test="src/{$1}_test.ts"
+[[rules.links]]
+name="test"
+pattern="src/{$1}.test.ts"

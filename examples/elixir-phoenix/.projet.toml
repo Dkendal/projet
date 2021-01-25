@@ -1,0 +1,15 @@
+[[rules]]
+name='test'
+pattern="test/**/*_test.exs"
+
+[[rules.links]]
+name='lib'
+pattern="lib/{$*}.ex"
+
+[[rules]]
+name='lib'
+pattern="lib/**/*.ex"
+
+[[rules.links]]
+name='test'
+pattern="test/{$*}_test.exs"

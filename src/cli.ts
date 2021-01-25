@@ -1,23 +1,16 @@
-import yargs = require('yargs/yargs')
+import yargs from 'yargs'
 import { assoc, loadConfig } from './projet'
 
 /**
  * Main CLI script entrypoint.
  */
-
-export default function () {
-  yargs(process.argv.slice(2))
-    .command({
+export default function() {
+  yargs(process.argv.slice(2)).command(
+    {
       command: 'assoc <relationship> <file>',
       aliases: ['a'],
       describe: 'find a file with the matching relationship',
-      handler: async ({
-        file,
-        relationship,
-      }: {
-        file: string
-        relationship: string
-      }) => {
+      handler: async ({ file, relationship }: { file: string; relationship: string }) => {
         const config = await loadConfig('./.projet.toml')
 
         if (!config) {
@@ -26,8 +19,6 @@ export default function () {
 
         console.log(assoc(config, relationship, file))
       },
-    })
-    .demandCommand()
-    .help()
-    .wrap(72).argv
+    },
+  ).demandCommand().help().wrap(72).argv
 }

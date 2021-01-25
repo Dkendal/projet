@@ -1,12 +1,11 @@
-import type {Config} from '@jest/types'
+import type { Config } from '@jest/types'
+
 /*
  * For a detailed explanation regarding each configuration property and type check, visit:
  * https://jestjs.io/docs/en/configuration.html
  */
 
 const config: Config.InitialOptions = {
-  preset: 'ts-jest',
-
   // All imported modules in your tests should be mocked automatically
   // automock: false,
 
@@ -26,7 +25,7 @@ const config: Config.InitialOptions = {
   // collectCoverageFrom: undefined,
 
   // The directory where Jest should output its coverage files
-  coverageDirectory: "coverage",
+  coverageDirectory: 'coverage',
 
   // An array of regexp pattern strings used to skip coverage collection
   // coveragePathIgnorePatterns: [
@@ -34,7 +33,7 @@ const config: Config.InitialOptions = {
   // ],
 
   // Indicates which provider should be used to instrument code for coverage
-  coverageProvider: "v8",
+  coverageProvider: 'v8',
 
   // A list of reporter names that Jest uses when writing coverage reports
   // coverageReporters: [
@@ -140,7 +139,7 @@ const config: Config.InitialOptions = {
   // snapshotSerializers: [],
 
   // The test environment that will be used for testing
-  testEnvironment: "node",
+  testEnvironment: 'node',
 
   // Options that will be passed to the testEnvironment
   // testEnvironmentOptions: {},
@@ -194,6 +193,10 @@ const config: Config.InitialOptions = {
 
   // Whether to use watchman for file crawling
   // watchman: true,
-};
+  transform: {
+    '\\\.jsx?$': ['./lib/esbuild-jest.js', { sourcemap: true }],
+    '\\\.tsx?$': ['./lib/esbuild-jest.js', { sourcemap: true }],
+  },
+}
 
-export default config;
+export default config

@@ -1,9 +1,5 @@
-We'll just double check here that the lua file can be sourced.
-
-  :lua projet = require'projet'
-  ~ hello world from lua
-
 We can get a files alternate directly by calling the function.
 
-  :echomsg projet#assoc('test')
-  ~ ./src/index.test.ts
+  :call SetLines()
+  ! npm --loglevel silent root -g
+  May I offer you an egg in these troubling times

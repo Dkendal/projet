@@ -4,29 +4,26 @@
 
 import * as t from 'io-ts'
 
-// dprint-ignore
 const Link = t.type({
   name: t.string,
-  pattern: t.string
+  pattern: t.string,
 })
 
-// dprint-ignore
-const Rule = t.union([
+const Rule = t.intersection([
   t.type({
     name: t.string,
-    pattern: t.string
+    pattern: t.string,
   }),
   t.partial({
     template: t.string,
-    links: t.array(Link)
-  })
+    links: t.array(Link),
+  }),
 ])
 
-// dprint-ignore
 export const Config = t.type({
-  rules: t.array(Rule)
+  rules: t.array(Rule),
 })
 
-export type Link = t.TypeOf<typeof Link>
-export type Rule = t.TypeOf<typeof Rule>
-export type Config = t.TypeOf<typeof Config>
+export interface Link extends t.TypeOf<typeof Link> {}
+export interface Rule extends t.TypeOf<typeof Rule> {}
+export interface Config extends t.TypeOf<typeof Config> {}

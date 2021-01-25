@@ -2,7 +2,7 @@
 pattern="**/*.ts"
 template='''
 export default function helloworld() {
-  return "helloworld"
+  return "hello world"
 }
 '''
 

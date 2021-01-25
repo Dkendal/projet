@@ -1,9 +1,18 @@
 import * as toml from '@iarna/toml'
+import { isLeft } from 'fp-ts/lib/Either'
 import * as fs from 'fs'
+import { promises as fsx } from 'fs'
 import * as match from 'micromatch'
-import * as mustache from 'micromustache'
 import * as path from 'path'
-import { isTransformer, transforms } from './transforms'
+import { Config, Rule } from './config'
+import { buildScope, render } from './template'
+
+export type { Config, Rule }
+
+interface ConfigInstance {
+  path: string
+  config: Config
+}
 
 /*
  * Basic premise of what I want v1 to be
@@ -30,41 +39,44 @@ import { isTransformer, transforms } from './transforms'
  */
 
 /**
- * The file config. Defines acceptable input.
+ * Search upwards until the config file is found.
  */
-export interface Config {
-  [path: string]: MatchConfig
-}
+export async function findConfig(startingDir: string): Promise<string> {
+  let dir = startingDir
 
-export interface MatchConfig {
-  pattern: string
-  template?: string
-  relationships?: {
-    [name: string]: string
+  while (true) {
+    let filename = path.join(dir, '.projet.toml')
+
+    if (fs.existsSync(filename))
+      return path.resolve(filename)
+
+    if (dir === '/')
+      throw "couldn't find config file"
+
+    dir = path.dirname(dir)
   }
 }
 
 /**
- * Load the config from the FS. For now just assume that it's in the current
- * directory.
+ * Load the config from the the provided path.
  */
-export async function loadConfig(file: string): Promise<Config | null> {
-  const content = await new Promise((res, rej) =>
-    fs.readFile(file, { encoding: 'utf-8' }, (err, data) => {
-      if (err) {
-        rej(err)
-      }
-      res(data)
-    }),
-  )
+export async function loadConfig(localpath: string) {
+  const content = await fsx.readFile(localpath, { encoding: 'utf-8' })
+  const json = toml.parse(content)
+  const config = Config.decode(json)
 
-  if (typeof content !== 'string') {
-    throw 'expected a string'
-  }
+  if (isLeft(config))
+    throw config.left
+  else
+    return { path: localpath, config: config.right }
+}
 
-  const config = toml.parse(content)
-
-  return (config as unknown) as Config
+/**
+ * Convenience function to find, and load the configuration.
+ */
+export async function getConfig(startingDir: string) {
+  const configPath = await findConfig(startingDir)
+  return loadConfig(configPath)
 }
 
 /**
@@ -72,23 +84,25 @@ export async function loadConfig(file: string): Promise<Config | null> {
  * category, which is what kind of "type" of file this is, the config for
  * this category, and the captures from the pattern for replacement.
  */
-interface CategoryMatch {
+export interface RuleMatch {
   captures: RegExpMatchArray
   category: string
-  config: MatchConfig
+  rule: Rule
 }
 
-export function findMatch(config: Config, file: string): CategoryMatch | null {
-  // remove leading ./
-  file = path.relative('./', file)
+export function findMatch(config: ConfigInstance, filepath: string): RuleMatch | null {
+  const to = path.dirname(config.path)
+  const localpath = path.relative(to, filepath)
 
-  for (const [category, categoryConfig] of Object.entries(config)) {
-    const pattern = categoryConfig.pattern
-    const captures = match.capture(pattern, file)
+  const rules = config.config.rules
 
-    if (captures) {
-      return { captures, category, config: categoryConfig }
-    }
+  for (const rule of rules) {
+    const category = rule.name
+    const pattern = rule.pattern
+    const captures = match.capture(pattern, localpath)
+
+    if (captures)
+      return { captures, category, rule }
   }
   return null
 }
@@ -97,27 +111,45 @@ export function findMatch(config: Config, file: string): CategoryMatch | null {
  * Return the name of the file in relation relationship `assocName` with file
  * at `path`.
  */
-export function assoc(
-  config: Config,
-  relationship: string,
-  file: string,
-): string {
+export function assoc(config: ConfigInstance, file: string, linkName?: string): string {
   const match = findMatch(config, file)
 
-  if (!match) {
-    throw `no match for: ${file}`
-  }
+  if (!match) throw `No matching rule for ${file}`
 
-  const relationships = match.config.relationships ?? {}
-  const template = relationships[relationship]
+  const rule = match.rule
 
-  if (!template) {
-    throw `no relationship: ${relationship}`
-  }
+  let link = findLink(rule, linkName)
+
+  const pattern = link.pattern
 
   const binding = { file }
   const scope = buildScope(match, binding)
-  return render(template, scope)
+  const localpath = render(pattern, scope)
+  const dir = path.dirname(config.path)
+  return path.normalize(path.join(dir, localpath))
+}
+
+/**
+ * Return the link that matches the name, or return the first link if not
+ * specified
+ */
+function findLink(rule: Rule, linkName: string | undefined) {
+  const ruleName = rule.name
+  const links = rule.links ?? []
+
+  if (!linkName) {
+    const link = links[0]
+
+    if (!link) throw `No links defined for ${ruleName}`
+
+    return link
+  }
+
+  const link = links.find(({ name }) => name === linkName)
+
+  if (!link) throw `No link named ${linkName} defined for ${ruleName}`
+
+  return link
 }
 
 /**
@@ -130,103 +162,18 @@ export function list(_config: Config): string[] {
 /**
  * Return a generated version of a file at the path `path`.
  */
-export function template(config: Config, file: string): string {
+export function template(config: ConfigInstance, file: string): string {
   const match = findMatch(config, file)
 
-  if (!match) {
+  if (!match)
     throw `no match for: ${file}`
-  }
 
-  const template = match.config.template
+  const template = match.rule.template
 
-  if (!template) {
+  if (!template)
     return ''
-  }
 
   const binding = { file }
   const scope = buildScope(match, binding)
   return render(template, scope)
-}
-
-type ICompileOptions = mustache.ICompileOptions
-type Scope = mustache.Scope
-
-function buildScope(match: CategoryMatch, bindings: {}) {
-  const entries = match.captures.map((value, idx) => [`$${idx}`, value])
-  const captures = Object.fromEntries(entries)
-  const scope = Object.assign(bindings, captures)
-  return scope
-}
-
-function get(scope: Scope, pathExpr: string | string[]) {
-  return mustache.get(scope, pathExpr, { propsExist: true })
-}
-
-function pipeReducer(acc: string, transformName: string) {
-  transformName = transformName.trim()
-
-  if (!isTransformer(transformName)) {
-    throw `error: ${transformName} is not a valid transform`
-  }
-
-  return transforms[transformName](acc)
-}
-
-/**
- * Called by mustache with the contents of a tag, used to provide our own
- * grammar.
- */
-function resolveFn(path: string, scope?: Scope) {
-  if (!scope) {
-    throw new Error('expected scope to be non-null')
-  }
-
-  const [pathExpr, ...pipes] = path.split('|')
-
-  if (!pathExpr) {
-    throw new Error(`expected a path expression, got: ${pathExpr}`)
-  }
-
-  const value = get(scope, pathExpr)
-
-  if (typeof value !== 'string') {
-    throw new Error('expected value to be a string')
-  }
-
-  return pipes.reduce(pipeReducer, value)
-}
-
-/**
- * Render a mustache template.
- */
-export function render(template: string, scope: {}): string {
-  const opts: ICompileOptions = {
-    tags: ['{', '}'],
-    propsExist: true,
-    validateVarNames: true,
-  }
-
-  try {
-    return mustache.renderFn(template, resolveFn, scope, opts)
-  } catch (e) {
-    if (e instanceof ReferenceError) {
-      const br = '\n'
-      const message = e.message
-      const stack = e.stack
-
-      const reraised = new ReferenceError(
-        [
-          message,
-          br,
-          `Available assigns: ${Object.keys(scope).join(', ')}`,
-          br,
-        ].join(''),
-      )
-
-      reraised.stack = stack?.split('\n').slice(2).join('\n')
-
-      throw reraised
-    }
-    throw e
-  }
 }
