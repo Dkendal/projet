@@ -2,7 +2,6 @@
 exec >&2
 PATH=../node_modules/.bin:$PATH
 
-redo-ifchange bsb
 # shellcheck disable=SC2046
 redo-ifchange $(find src)
 
