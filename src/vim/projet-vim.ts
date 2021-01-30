@@ -1,5 +1,5 @@
-import type {NvimPlugin} from 'neovim'
-import {AutocmdOptions, CommandOptions, NvimFunctionOptions} from 'neovim/lib/host/NvimPlugin'
+import type { NvimPlugin } from 'neovim'
+import { AutocmdOptions, CommandOptions, NvimFunctionOptions } from 'neovim/lib/host/NvimPlugin'
 import path from 'path'
 import util from 'util'
 import * as projet from '../projet'
@@ -103,8 +103,7 @@ export = (plugin: NvimPlugin) => {
   /**
    * @since 0.2.0
    */
-  defCmd('Tcd', 
-    async () => {
+  defCmd('Tcd', async () => {
     const bname = await api.buffer.name
     const configFile = await projet.findConfig(bname)
     const dir = path.dirname(configFile)
