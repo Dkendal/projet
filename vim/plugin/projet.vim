@@ -23,5 +23,5 @@ noremap <silent> <plug>(ProjetLink) :ProjetLink<cr>
 noremap <silent> <plug>(ProjetConfig) :ProjetConfig<cr>
 
 if exists(':A') !=# 2
-  command -nargs=? -complete=custom,ProjetLinkComplete A :ProjetLink <args>
+  command -nargs=? -complete=custom,ProjetListRules A :ProjetLink <args>
 endif

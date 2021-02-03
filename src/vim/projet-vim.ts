@@ -77,7 +77,7 @@ export = (plugin: NvimPlugin) => {
   }, {
     sync: false,
     nargs: '?',
-    complete: 'custom,ProjetLinkComplete',
+    complete: 'custom,ProjetListRules',
   })
 
   /**
@@ -126,7 +126,7 @@ export = (plugin: NvimPlugin) => {
   /**
    * @since 0.1.0
    */
-  defFn('ProjetLinkComplete', async (_argLead: string, _cmdLine: string, _cursorPos: number) => {
+  defFn('ProjetListRules', async (_argLead: string, _cmdLine: string, _cursorPos: number) => {
     const file = await api.buffer.name
     const config = await projet.getConfig(file)
     const match = projet.findMatch(config, file)
