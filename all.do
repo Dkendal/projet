@@ -12,7 +12,7 @@ esbuild src/esbuild-jest.ts \
   --sourcemap=inline \
   --outfile=lib/esbuild-jest.js
 
-redo-ifchange vim
+redo-ifchange all.vim
 # shellcheck disable=SC2046
 redo-ifchange $(find src)
 

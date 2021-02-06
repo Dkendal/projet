@@ -56,7 +56,7 @@ const config: Config.InitialOptions = {
   // forceCoverageMatch: [],
 
   // A path to a module which exports an async function that is triggered once before all test suites
-  // globalSetup: undefined,
+  // globalSetup: '',
 
   // A path to a module which exports an async function that is triggered once after all test suites
   // globalTeardown: undefined,
@@ -198,5 +198,8 @@ const config: Config.InitialOptions = {
     '\\\.tsx?$': ['./lib/esbuild-jest.js', { sourcemap: true }],
   },
 }
+
+// @ts-ignore
+global.logger = console;
 
 export default config

@@ -7,7 +7,7 @@ name="src"
 pattern="src/{$*}.ts"
 
 [[rules]]
-name="lib"
+name="src"
 pattern="src/**/*.ts"
 template='''
 export default function {$*} () {

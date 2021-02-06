@@ -3,6 +3,6 @@
 script_dir="$(cd "$(dirname "$(readlink -e "${BASH_SOURCE[0]}")")" && pwd)"
 vimrc="${script_dir}/../vim/test/vimrc"
 export NVIM_RPLUGIN_MANIFEST="${script_dir}/../tmp/rplugin.vim"
-redo "$script_dir/../vim"
+redo "$script_dir/../all.vim"
 nvim -u "$vimrc" +UpdateRemotePlugins +q
 nvim -u "$vimrc" $@

@@ -15,9 +15,8 @@ const getExt = (str: string) => {
 const getOptions = (config: any) => {
   let options = {}
 
-  for (let i = 0; i < config.transform.length; i++) {
+  for (let i = 0; i < config.transform.length; i++)
     options = config.transform[i][2]
-  }
 
   return options
 }
@@ -51,5 +50,12 @@ export function process(content: string, filename: string, config: any) {
     },
   )
 
-  return { code: result.code, map: result?.map ? { ...JSON.parse(result.map), sourcesContent: null } : '' }
+  const map = result?.map
+    ? { ...JSON.parse(result.map), sourcesContent: null }
+    : ''
+
+  return {
+    code: result.code,
+    map: map,
+  }
 }
