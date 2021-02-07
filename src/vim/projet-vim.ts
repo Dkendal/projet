@@ -1,10 +1,137 @@
 import { NvimPlugin } from 'neovim'
-import { AutocmdOptions, CommandOptions, NvimFunctionOptions } from 'neovim/lib/host/NvimPlugin'
+import { AutocmdOptions, CommandOptions as CommandOptions_, NvimFunctionOptions } from 'neovim/lib/host/NvimPlugin'
 import path from 'path'
 import util from 'util'
 import { isNone } from '../guards'
 import * as projet from '../projet'
 import { getConfig } from '../projet'
+
+type AutocmdEvents =
+  | 'BufAdd'
+  | 'BufDelete'
+  | 'BufEnter'
+  | 'BufFilePost'
+  | 'BufFilePre'
+  | 'BufHidden'
+  | 'BufLeave'
+  | 'BufModifiedSet'
+  | 'BufNew'
+  | 'BufNewFile'
+  | 'BufRead'
+  | 'BufReadCmd'
+  | 'BufReadPost'
+  | 'BufReadPre'
+  | 'BufUnload'
+  | 'BufWinEnter'
+  | 'BufWinLeave'
+  | 'BufWipeout'
+  | 'BufWrite'
+  | 'BufWriteCmd'
+  | 'BufWritePost'
+  | 'BufWritePre'
+  | 'ChanInfo'
+  | 'ChanOpen'
+  | 'CmdUndefined'
+  | 'CmdlineChanged'
+  | 'CmdlineEnter'
+  | 'CmdlineLeave'
+  | 'CmdwinEnter'
+  | 'CmdwinLeave'
+  | 'ColorScheme'
+  | 'ColorSchemePre'
+  | 'CompleteChanged'
+  | 'CompleteDone'
+  | 'CompleteDonePre'
+  | 'CursorHold'
+  | 'CursorHoldI'
+  | 'CursorMoved'
+  | 'CursorMovedI'
+  | 'DiffUpdated'
+  | 'DirChanged'
+  | 'ExitPre'
+  | 'FileAppendCmd'
+  | 'FileAppendPost'
+  | 'FileAppendPre'
+  | 'FileChangedRO'
+  | 'FileChangedShell'
+  | 'FileChangedShellPost'
+  | 'FileReadCmd'
+  | 'FileReadPost'
+  | 'FileReadPre'
+  | 'FileType'
+  | 'FileWriteCmd'
+  | 'FileWritePost'
+  | 'FileWritePre'
+  | 'FilterReadPost'
+  | 'FilterReadPre'
+  | 'FilterWritePost'
+  | 'FilterWritePre'
+  | 'FocusGained'
+  | 'FocusLost'
+  | 'FuncUndefined'
+  | 'InsertChange'
+  | 'InsertCharPre'
+  | 'InsertEnter'
+  | 'InsertLeave'
+  | 'InsertLeavePre'
+  | 'MenuPopup'
+  | 'OptionSet'
+  | 'QuickFixCmdPost'
+  | 'QuickFixCmdPre'
+  | 'QuitPre'
+  | 'RemoteReply'
+  | 'SessionLoadPost'
+  | 'ShellCmdPost'
+  | 'ShellFilterPost'
+  | 'Signal'
+  | 'SourceCmd'
+  | 'SourcePost'
+  | 'SourcePre'
+  | 'SpellFileMissing'
+  | 'StdinReadPost'
+  | 'StdinReadPre'
+  | 'SwapExists'
+  | 'Syntax'
+  | 'TabClosed'
+  | 'TabEnter'
+  | 'TabLeave'
+  | 'TabNew'
+  | 'TabNewEntered'
+  | 'TermClose'
+  | 'TermEnter'
+  | 'TermLeave'
+  | 'TermOpen'
+  | 'TermResponse'
+  | 'TextChanged'
+  | 'TextChangedI'
+  | 'TextChangedP'
+  | 'TextYankPost'
+  | 'UIEnter'
+  | 'UILeave'
+  | 'User'
+  | 'UserGettingBored'
+  | 'VimEnter'
+  | 'VimLeave'
+  | 'VimLeavePre'
+  | 'VimResized'
+  | 'VimResume'
+  | 'VimSuspend'
+  | 'WinClosed'
+  | 'WinEnter'
+  | 'WinLeave'
+  | 'WinNew'
+  | 'WinScrolled'
+
+interface CommandOptions extends CommandOptions_ {
+  nargs:
+    | '0'
+    | '1'
+    | '*'
+    | '?'
+    | '+'
+}
+
+const all = Promise.all.bind(Promise)
 
 const pluginOptions = {
   dev: ENV === 'dev',
@@ -16,17 +143,23 @@ function main(plugin: NvimPlugin) {
   logger = plugin.nvim.logger
 
   const api = plugin.nvim
+  const fn = api.call.bind(api)
   const cmd = api.command.bind(api)
 
   plugin.setOptions(pluginOptions)
+
+  /****************************************************************************/
+  /*                                                                          */
+  /*                                 Logging                                  */
+  /*                                                                          */
+  /*  Loggers use winston, and are configured to write to NVIM_NODE_LOG_FILE  */
+  /*                                                                          */
+  /****************************************************************************/
 
   const dump = (x: any) => echomsg(util.inspect(x, false, null))
   const echoerr = (...msg: string[]) => api.errWriteLine(msg.join(' '))
   const echomsg = (...msg: string[]) => api.outWriteLine(msg.join(' '))
 
-  /*
-   * Loggers use winston, and are configured to write to NVIM_NODE_LOG_FILE
-   */
   logger.dump = dump
 
   const debug = logger.debug.bind(logger)
@@ -38,6 +171,22 @@ function main(plugin: NvimPlugin) {
     return await api.call('getcwd') as string
   }
 
+  interface FzfSpec {
+    source: string | string[]
+  }
+
+  async function fzf(spec: FzfSpec) {
+    // globpath(&rtp, 'bin/preview.sh')
+    return fn('fzf#wrap', [spec])
+      .then(spec => fn('fzf#run', [spec]))
+  }
+
+  /****************************************************************************/
+  /*                                                                          */
+  /*                    Neovim plugin registration helpers                    */
+  /*                                                                          */
+  /****************************************************************************/
+
   /**
    * Wrap `fn` with an error handling to print any errors as an error message
    * within Vim.
@@ -47,6 +196,8 @@ function main(plugin: NvimPlugin) {
       try {
         return await fn(...args)
       } catch (e: unknown) {
+        if (process.env.NVIM_NODE_HOST_DEBUG)
+          throw e
         if (typeof e === 'string')
           return echoerr(e)
         else
@@ -91,22 +242,33 @@ function main(plugin: NvimPlugin) {
     }
   }
 
-  /****************************************************************************/
-  /*                                                                          */
-  /*                               Autocommands                               */
-  /*                                                                          */
-  /****************************************************************************/
-  defAutocmd('BufNewFile', async () => {
-    // Apply template
-    const file = await api.buffer.name
-    const config = await projet.getConfig(file)
-    const template = projet.template(config, file)
-    const lines = template.split('\n')
-    await api.buffer.setLines(lines, { start: 0, end: -1 })
-  }, {
-    pattern: '*',
-    sync: false,
-  })
+  /**
+   * Decorator to register as a vim autocmd.
+   * The actual function name isn't important - `name` is the autocmd event that
+   * it will be registered to.
+   */
+  function vimAutocmd(name: AutocmdEvents, opts: AutocmdOptions) {
+    return (_target: any, _propertyKey: string, descriptor: PropertyDescriptor) => {
+      return plugin.registerAutocmd(name, catchErrors(descriptor.value), opts)
+    }
+  }
+
+  // /****************************************************************************/
+  // /*                                                                          */
+  // /*                               Autocommands                               */
+  // /*                                                                          */
+  // /****************************************************************************/
+  // defAutocmd('BufNewFile', async () => {
+  //   // Apply template
+  //   const file = await api.buffer.name
+  //   const config = await projet.getConfig(file)
+  //   const template = projet.template(config, file)
+  //   const lines = template.split('\n')
+  //   await api.buffer.setLines(lines, { start: 0, end: -1 })
+  // }, {
+  //   pattern: '*',
+  //   sync: false,
+  // })
 
   class Plugin {
     /**************************************************************************/
@@ -115,11 +277,10 @@ function main(plugin: NvimPlugin) {
     /*                                                                        */
     /**************************************************************************/
 
-    @vimFunction({ sync: true, eval: '[getcwd(), bufname()]' })
-    async ProjetEditComplete(
-      [_argLead, cmdLine, cursorPos]: [string, string, number],
-      [cwd, bufname]: [string, string],
-    ) {
+    @vimFunction({ sync: true })
+    async ProjetEditComplete([_argLead, cmdLine, cursorPos]: [string, string, number]) {
+      const [bufname, cwd] = await all([api.buffer.name, getcwd()])
+
       const config = await getConfig(bufname)
 
       const before = cmdLine.slice(0, cursorPos)
@@ -241,22 +402,42 @@ function main(plugin: NvimPlugin) {
       const file = await api.buffer.name
       const config = await projet.getConfig(file)
 
+      //
+      // 1 arg
+      //
       if (isNone(localpath)) {
         const cwd = await getcwd()
         const source = projet
           .list(config, ruleName)
           .map(x => path.relative(cwd, x))
 
-        return api.callFunction('fzf#run', [{ source, sink: 'e' }])
-      } else {
-        const rule = projet.getRule(config, ruleName)
-
-        if (!rule) throw `no rule matching ${ruleName}`
-
-        const editpath = projet.joinBasePath(rule.pattern, localpath)
-
-        await cmd(`edit ${editpath}`)
+        return fzf({ source })
       }
+
+      //
+      // 2 arg
+      //
+      const rule = projet.getRule(config, ruleName)
+
+      if (!rule) throw `no rule matching ${ruleName}`
+
+      const editpath = projet.joinBasePath(rule.pattern, localpath)
+
+      await cmd(`edit ${editpath}`)
+    }
+
+    /**************************************************************************/
+    /*                                                                        */
+    /*                                Autocmds                                */
+    /*                                                                        */
+    /**************************************************************************/
+    @vimAutocmd('BufNewFile', { pattern: '*', sync: false })
+    async applyTemplate() {
+      const file = await api.buffer.name
+      const config = await projet.getConfig(file)
+      const template = projet.template(config, file)
+      const lines = template.split('\n')
+      await api.buffer.setLines(lines, { start: 0, end: -1 })
     }
   }
 
