@@ -15,45 +15,10 @@ export type None = undefined | null
 export type Some<T> = T
 export type Option<T> = Some<T> | None
 
-interface Ast {
-  tokens: Token[]
-}
-
-interface Token {
-  type: 'slash' | 'text' | 'bos'
-  value: string
-  output?: string
-  prev?: Token
-}
-
 interface ConfigInstance {
   path: string
   config: Config
 }
-
-/*
- * Basic premise of what I want v1 to be
- *
- * Load a config file, probably toml - special fallbacks can come later,
- * assume same directory for now. hand at least what projections can do
- *
- * Add basic CLI interface, will have to find a library for this, i've used
- * yargs before and liked it.
- *
- * For any given file path
- * - find its match in the config
- * - return its alternate (later any other arbitrary relationship)
- * - return a template for it
- * - return some other KV for it
- *
- * Later I can generate a graph based on the relationships, but for now
- * focus on doing what projectionist can do.
- *
- *
- * For templating, if possible reuse the same * {foo:bar} syntax, otherwise
- * find something that already exists. Implement basic transforms.
- *
- */
 
 /**
  * Search upwards until the config file is found.
