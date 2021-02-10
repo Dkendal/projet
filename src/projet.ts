@@ -1,12 +1,11 @@
 import * as toml from '@iarna/toml'
 import * as Either from 'fp-ts/lib/Either'
 import * as fs from 'fs'
-import { promises as fsx } from 'fs'
 import * as match from 'micromatch'
 import * as micromatch from 'micromatch'
 import * as path from 'path'
 import { Config, Rule } from './config'
-import {isNone} from './guards'
+import { isNone } from './guards'
 import { buildScope, render } from './template'
 
 export type { Config, Rule }
@@ -14,6 +13,14 @@ export type { Config, Rule }
 export type None = undefined | null
 export type Some<T> = T
 export type Option<T> = Some<T> | None
+export type Result<L extends string, R> = Failure<L> | R
+export type ResultAsync<L extends string, R> = Promise<Result<L, R>>
+
+export class Failure<T extends string> extends Error {
+  constructor(public code: T) {
+    super(code)
+  }
+}
 
 interface ConfigInstance {
   path: string
@@ -23,7 +30,7 @@ interface ConfigInstance {
 /**
  * Search upwards until the config file is found.
  */
-export async function findConfig(startingDir: string): Promise<string> {
+export function findConfig(startingDir: string) {
   let dir = startingDir
 
   while (true) {
@@ -33,7 +40,7 @@ export async function findConfig(startingDir: string): Promise<string> {
       return path.resolve(filename)
 
     if (dir === '/')
-      throw "couldn't find config file"
+      return new Failure('no_config')
 
     dir = path.dirname(dir)
   }
@@ -42,8 +49,8 @@ export async function findConfig(startingDir: string): Promise<string> {
 /**
  * Load the config from the the provided path.
  */
-export async function loadConfig(localpath: string) {
-  const content = await fsx.readFile(localpath, { encoding: 'utf-8' })
+export function loadConfig(localpath: string) {
+  const content = fs.readFileSync(localpath, { encoding: 'utf-8' })
   const json = toml.parse(content)
   const config = Config.decode(json)
 
@@ -56,8 +63,11 @@ export async function loadConfig(localpath: string) {
 /**
  * Convenience function to find, and load the configuration.
  */
-export async function getConfig(startingDir: string) {
-  const configPath = await findConfig(startingDir)
+export function getConfig(startingDir: string) {
+  const configPath = findConfig(startingDir)
+
+  if (configPath instanceof Failure) return configPath
+
   return loadConfig(configPath)
 }
 

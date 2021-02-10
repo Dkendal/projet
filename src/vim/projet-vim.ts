@@ -4,126 +4,11 @@ import path from 'path'
 import util from 'util'
 import { isNone } from '../guards'
 import * as projet from '../projet'
-import { getConfig } from '../projet'
-
-type AutocmdEvents =
-  | 'BufAdd'
-  | 'BufDelete'
-  | 'BufEnter'
-  | 'BufFilePost'
-  | 'BufFilePre'
-  | 'BufHidden'
-  | 'BufLeave'
-  | 'BufModifiedSet'
-  | 'BufNew'
-  | 'BufNewFile'
-  | 'BufRead'
-  | 'BufReadCmd'
-  | 'BufReadPost'
-  | 'BufReadPre'
-  | 'BufUnload'
-  | 'BufWinEnter'
-  | 'BufWinLeave'
-  | 'BufWipeout'
-  | 'BufWrite'
-  | 'BufWriteCmd'
-  | 'BufWritePost'
-  | 'BufWritePre'
-  | 'ChanInfo'
-  | 'ChanOpen'
-  | 'CmdUndefined'
-  | 'CmdlineChanged'
-  | 'CmdlineEnter'
-  | 'CmdlineLeave'
-  | 'CmdwinEnter'
-  | 'CmdwinLeave'
-  | 'ColorScheme'
-  | 'ColorSchemePre'
-  | 'CompleteChanged'
-  | 'CompleteDone'
-  | 'CompleteDonePre'
-  | 'CursorHold'
-  | 'CursorHoldI'
-  | 'CursorMoved'
-  | 'CursorMovedI'
-  | 'DiffUpdated'
-  | 'DirChanged'
-  | 'ExitPre'
-  | 'FileAppendCmd'
-  | 'FileAppendPost'
-  | 'FileAppendPre'
-  | 'FileChangedRO'
-  | 'FileChangedShell'
-  | 'FileChangedShellPost'
-  | 'FileReadCmd'
-  | 'FileReadPost'
-  | 'FileReadPre'
-  | 'FileType'
-  | 'FileWriteCmd'
-  | 'FileWritePost'
-  | 'FileWritePre'
-  | 'FilterReadPost'
-  | 'FilterReadPre'
-  | 'FilterWritePost'
-  | 'FilterWritePre'
-  | 'FocusGained'
-  | 'FocusLost'
-  | 'FuncUndefined'
-  | 'InsertChange'
-  | 'InsertCharPre'
-  | 'InsertEnter'
-  | 'InsertLeave'
-  | 'InsertLeavePre'
-  | 'MenuPopup'
-  | 'OptionSet'
-  | 'QuickFixCmdPost'
-  | 'QuickFixCmdPre'
-  | 'QuitPre'
-  | 'RemoteReply'
-  | 'SessionLoadPost'
-  | 'ShellCmdPost'
-  | 'ShellFilterPost'
-  | 'Signal'
-  | 'SourceCmd'
-  | 'SourcePost'
-  | 'SourcePre'
-  | 'SpellFileMissing'
-  | 'StdinReadPost'
-  | 'StdinReadPre'
-  | 'SwapExists'
-  | 'Syntax'
-  | 'TabClosed'
-  | 'TabEnter'
-  | 'TabLeave'
-  | 'TabNew'
-  | 'TabNewEntered'
-  | 'TermClose'
-  | 'TermEnter'
-  | 'TermLeave'
-  | 'TermOpen'
-  | 'TermResponse'
-  | 'TextChanged'
-  | 'TextChangedI'
-  | 'TextChangedP'
-  | 'TextYankPost'
-  | 'UIEnter'
-  | 'UILeave'
-  | 'User'
-  | 'UserGettingBored'
-  | 'VimEnter'
-  | 'VimLeave'
-  | 'VimLeavePre'
-  | 'VimResized'
-  | 'VimResume'
-  | 'VimSuspend'
-  | 'WinClosed'
-  | 'WinEnter'
-  | 'WinLeave'
-  | 'WinNew'
-  | 'WinScrolled'
+import { Failure, getConfig } from '../projet'
+import type {AutocmdEvents} from './types'
 
 interface CommandOptions extends CommandOptions_ {
-  nargs:
+  nargs?:
     | '0'
     | '1'
     | '*'
@@ -219,11 +104,6 @@ function main(plugin: NvimPlugin) {
     return plugin.registerFunction(name, wrappedFunction, opts)
   }
 
-  function defAutocmd(name: string, fn: Function, opts: AutocmdOptions) {
-    const wrappedFunction = catchErrors(fn)
-    return plugin.registerAutocmd(name, wrappedFunction, opts)
-  }
-
   /**
    * Decorator to register as a vim function.
    */
@@ -253,22 +133,15 @@ function main(plugin: NvimPlugin) {
     }
   }
 
-  // /****************************************************************************/
-  // /*                                                                          */
-  // /*                               Autocommands                               */
-  // /*                                                                          */
-  // /****************************************************************************/
-  // defAutocmd('BufNewFile', async () => {
-  //   // Apply template
-  //   const file = await api.buffer.name
-  //   const config = await projet.getConfig(file)
-  //   const template = projet.template(config, file)
-  //   const lines = template.split('\n')
-  //   await api.buffer.setLines(lines, { start: 0, end: -1 })
-  // }, {
-  //   pattern: '*',
-  //   sync: false,
-  // })
+  function failureMsg(failure: Failure<'no_config'>) {
+    switch (failure.code) {
+      case 'no_config':
+        return "Couldn't find a config file"
+
+      default:
+        return failure.code
+    }
+  }
 
   class Plugin {
     /**************************************************************************/
@@ -287,6 +160,8 @@ function main(plugin: NvimPlugin) {
 
       const args = before.split(/\s+/)
 
+      if (config instanceof Failure) throw failureMsg(config)
+
       if (args.length === 2)
         return config.config.rules.map(x => x.name).join('\n')
 
@@ -304,6 +179,9 @@ function main(plugin: NvimPlugin) {
     async ProjetListRules(_argLead: string, _cmdLine: string, _cursorPos: number) {
       const file = await api.buffer.name
       const config = await getConfig(file)
+
+      if (config instanceof Failure) throw failureMsg(config)
+
       const match = projet.findMatch(config, file)
       const keys = match?.rule?.links?.map(x => x.name) ?? []
       return keys.join('\n')
@@ -319,6 +197,9 @@ function main(plugin: NvimPlugin) {
     async ProjetRenderTemplate() {
       const file = await api.buffer.name
       const config = await getConfig(file)
+
+      if (config instanceof Failure) throw failureMsg(config)
+
       return projet.template(config, file)
     }
 
@@ -327,6 +208,9 @@ function main(plugin: NvimPlugin) {
       const file = await api.buffer.name
       const cwd = await getcwd()
       const config = await getConfig(file)
+
+      if (config instanceof Failure) throw failureMsg(config)
+
       return projet.list(config, ruleName)
         .map(x => path.relative(cwd, x))
     }
@@ -335,6 +219,9 @@ function main(plugin: NvimPlugin) {
     async ProjetGetMatchConfig() {
       const file = await api.buffer.name
       const config = await getConfig(file)
+
+      if (config instanceof Failure) throw failureMsg(config)
+
       const match = projet.findMatch(config, file)
 
       if (!match) throw `No matches for ${file}`
@@ -352,8 +239,13 @@ function main(plugin: NvimPlugin) {
     async ProjetLink([linkName]: string[]) {
       const file = await api.buffer.name
       const config = await projet.getConfig(file)
+
+      if (config instanceof Failure) return
+
       let linkFile = projet.assoc(config, file, linkName)
+
       const cwd = await getcwd()
+
       linkFile = path.relative(cwd, linkFile)
 
       await cmd(`edit ${linkFile}`)
@@ -362,32 +254,36 @@ function main(plugin: NvimPlugin) {
     @vimCommand({ sync: true })
     async Cd() {
       const bname = await api.buffer.name
-      const configFile = await projet.findConfig(bname)
-      const dir = path.dirname(configFile)
+      const config = await projet.findConfig(bname)
+      if (config instanceof Failure) throw failureMsg(config)
+      const dir = path.dirname(config)
       await cmd(`cd ${dir}`)
     }
 
     @vimCommand({ sync: false })
     async Lcd() {
       const bname = await api.buffer.name
-      const configFile = await projet.findConfig(bname)
-      const dir = path.dirname(configFile)
+      const config = await projet.findConfig(bname)
+      if (config instanceof Failure) throw failureMsg(config)
+      const dir = path.dirname(config)
       await cmd(`lcd ${dir}`)
     }
 
     @vimCommand({ sync: false })
     async Tcd() {
       const bname = await api.buffer.name
-      const configFile = await projet.findConfig(bname)
-      const dir = path.dirname(configFile)
+      const config = await projet.findConfig(bname)
+      if (config instanceof Failure) throw failureMsg(config)
+      const dir = path.dirname(config)
       await cmd(`tcd ${dir}`)
     }
 
     @vimCommand({ sync: false })
     async ProjetConfig() {
       const bname = await api.buffer.name
-      const configFile = await projet.findConfig(bname)
-      await cmd(`edit ${configFile}`)
+      const config = await projet.findConfig(bname)
+      if (config instanceof Failure) throw failureMsg(config)
+      await cmd(`edit ${config}`)
     }
 
     @vimCommand({
@@ -401,6 +297,8 @@ function main(plugin: NvimPlugin) {
     {
       const file = await api.buffer.name
       const config = await projet.getConfig(file)
+
+      if (config instanceof Failure) throw failureMsg(config)
 
       //
       // 1 arg
@@ -434,7 +332,11 @@ function main(plugin: NvimPlugin) {
     @vimAutocmd('BufNewFile', { pattern: '*', sync: false })
     async applyTemplate() {
       const file = await api.buffer.name
+
       const config = await projet.getConfig(file)
+
+      if (config instanceof Failure) throw failureMsg(config)
+
       const template = projet.template(config, file)
       const lines = template.split('\n')
       await api.buffer.setLines(lines, { start: 0, end: -1 })
