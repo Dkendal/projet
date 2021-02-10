@@ -5,7 +5,7 @@ import util from 'util'
 import { isNone } from '../guards'
 import * as projet from '../projet'
 import { Failure, getConfig } from '../projet'
-import type {AutocmdEvents} from './types'
+import {AutocmdEvents} from './types'
 
 interface CommandOptions extends CommandOptions_ {
   nargs?:
@@ -154,7 +154,7 @@ function main(plugin: NvimPlugin) {
     async ProjetEditComplete([_argLead, cmdLine, cursorPos]: [string, string, number]) {
       const [bufname, cwd] = await all([api.buffer.name, getcwd()])
 
-      const config = await getConfig(bufname)
+      const config = getConfig(bufname)
 
       const before = cmdLine.slice(0, cursorPos)
 
@@ -178,7 +178,7 @@ function main(plugin: NvimPlugin) {
     @vimFunction({ sync: true })
     async ProjetListRules(_argLead: string, _cmdLine: string, _cursorPos: number) {
       const file = await api.buffer.name
-      const config = await getConfig(file)
+      const config = getConfig(file)
 
       if (config instanceof Failure) throw failureMsg(config)
 
@@ -190,13 +190,13 @@ function main(plugin: NvimPlugin) {
     @vimFunction({ sync: true })
     async ProjetGetConfig() {
       const file = await api.buffer.name
-      return await getConfig(file)
+      return getConfig(file)
     }
 
     @vimFunction({ sync: true })
     async ProjetRenderTemplate() {
       const file = await api.buffer.name
-      const config = await getConfig(file)
+      const config = getConfig(file)
 
       if (config instanceof Failure) throw failureMsg(config)
 
@@ -207,7 +207,7 @@ function main(plugin: NvimPlugin) {
     async ProjetList(ruleName: string) {
       const file = await api.buffer.name
       const cwd = await getcwd()
-      const config = await getConfig(file)
+      const config = getConfig(file)
 
       if (config instanceof Failure) throw failureMsg(config)
 
@@ -218,7 +218,7 @@ function main(plugin: NvimPlugin) {
     @vimFunction({ sync: true })
     async ProjetGetMatchConfig() {
       const file = await api.buffer.name
-      const config = await getConfig(file)
+      const config = getConfig(file)
 
       if (config instanceof Failure) throw failureMsg(config)
 
@@ -238,7 +238,7 @@ function main(plugin: NvimPlugin) {
     @vimCommand({ sync: false, nargs: '?', complete: 'custom,ProjetListRules' })
     async ProjetLink([linkName]: string[]) {
       const file = await api.buffer.name
-      const config = await projet.getConfig(file)
+      const config = projet.getConfig(file)
 
       if (config instanceof Failure) return
 
@@ -254,7 +254,7 @@ function main(plugin: NvimPlugin) {
     @vimCommand({ sync: true })
     async Cd() {
       const bname = await api.buffer.name
-      const config = await projet.findConfig(bname)
+      const config = projet.findConfig(bname)
       if (config instanceof Failure) throw failureMsg(config)
       const dir = path.dirname(config)
       await cmd(`cd ${dir}`)
@@ -263,7 +263,7 @@ function main(plugin: NvimPlugin) {
     @vimCommand({ sync: false })
     async Lcd() {
       const bname = await api.buffer.name
-      const config = await projet.findConfig(bname)
+      const config = projet.findConfig(bname)
       if (config instanceof Failure) throw failureMsg(config)
       const dir = path.dirname(config)
       await cmd(`lcd ${dir}`)
@@ -272,7 +272,7 @@ function main(plugin: NvimPlugin) {
     @vimCommand({ sync: false })
     async Tcd() {
       const bname = await api.buffer.name
-      const config = await projet.findConfig(bname)
+      const config = projet.findConfig(bname)
       if (config instanceof Failure) throw failureMsg(config)
       const dir = path.dirname(config)
       await cmd(`tcd ${dir}`)
@@ -281,7 +281,7 @@ function main(plugin: NvimPlugin) {
     @vimCommand({ sync: false })
     async ProjetConfig() {
       const bname = await api.buffer.name
-      const config = await projet.findConfig(bname)
+      const config = projet.findConfig(bname)
       if (config instanceof Failure) throw failureMsg(config)
       await cmd(`edit ${config}`)
     }
@@ -296,7 +296,7 @@ function main(plugin: NvimPlugin) {
       | [ruleName: string, localpath: string])
     {
       const file = await api.buffer.name
-      const config = await projet.getConfig(file)
+      const config = projet.getConfig(file)
 
       if (config instanceof Failure) throw failureMsg(config)
 
@@ -333,7 +333,7 @@ function main(plugin: NvimPlugin) {
     async applyTemplate() {
       const file = await api.buffer.name
 
-      const config = await projet.getConfig(file)
+      const config = projet.getConfig(file)
 
       if (config instanceof Failure) throw failureMsg(config)
 
