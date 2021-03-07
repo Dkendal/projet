@@ -1,6 +1,5 @@
 if exists('g:did_projet_loaded')
   finish
-
 endif
 
 if executable('node') ==# v:false

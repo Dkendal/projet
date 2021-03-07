@@ -47,11 +47,6 @@ function main(plugin: NvimPlugin) {
 
   logger.dump = dump
 
-  const debug = logger.debug.bind(logger)
-  const info = logger.info.bind(logger)
-  const error = logger.error.bind(logger)
-  const warn = logger.warn.bind(logger)
-
   async function getcwd() {
     return await api.call('getcwd') as string
   }
@@ -143,6 +138,19 @@ function main(plugin: NvimPlugin) {
     }
   }
 
+  /**
+   * Get the config associated with the current buffer.
+   */
+  async function bufGetConfig() {
+    const bname = await api.buffer.name
+    const config = projet.getConfig(bname)
+
+    if (config instanceof Failure) throw failureMsg(config)
+
+    return config
+  }
+
+
   class Plugin {
     /**************************************************************************/
     /*                                                                        */
@@ -156,11 +164,11 @@ function main(plugin: NvimPlugin) {
 
       const config = getConfig(bufname)
 
+      if (config instanceof Failure) throw failureMsg(config)
+
       const before = cmdLine.slice(0, cursorPos)
 
       const args = before.split(/\s+/)
-
-      if (config instanceof Failure) throw failureMsg(config)
 
       if (args.length === 2)
         return config.config.rules.map(x => x.name).join('\n')
@@ -218,7 +226,7 @@ function main(plugin: NvimPlugin) {
     @vimFunction({ sync: true })
     async ProjetGetMatchConfig() {
       const file = await api.buffer.name
-      const config = getConfig(file)
+      const config = projet.getConfig(file)
 
       if (config instanceof Failure) throw failureMsg(config)
 
